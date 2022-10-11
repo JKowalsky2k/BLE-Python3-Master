@@ -1,6 +1,7 @@
 {
     "main_window": {
         "title": "Awsome Cube Controler App",
-        "resolution": "500x500"
+        "width": 500,
+        "height": 500
     }
 }
