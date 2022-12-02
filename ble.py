@@ -46,13 +46,13 @@ class ScanConnectFrame(customtkinter.CTkFrame):
         self.master = master
 
         self.all_devices = dict()
-        customtkinter.CTkButton(self, text="Scan", command=lambda: self.run_discover_task(self.master.async_loop), width=450, height=50).place(x=25, y=25)
+        customtkinter.CTkButton(self, text="Skanuj", command=lambda: self.run_discover_task(self.master.async_loop), width=450, height=50).place(x=25, y=25)
         self.combobox_select_device = customtkinter.CTkComboBox(self, values=["---"], command=self.select_device, width=450, height=50)
         self.combobox_select_device.place(x=25, y=100)
-        customtkinter.CTkButton(self, text="Connect", command=lambda: self.run_connect_task(self.master.async_loop), width=450, height=50).place(x=25, y=175)
+        customtkinter.CTkButton(self, text="Polącz", command=lambda: self.run_connect_task(self.master.async_loop), width=450, height=50).place(x=25, y=175)
         self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
         self.label_status.place(x=25, y=425)
-        self.update_status(message="Not connected")
+        self.update_status(message="Nie połączony")
 
     def update_status(self, message):
         self.label_status.configure(text=f"Status: {message}")
@@ -73,25 +73,24 @@ class ScanConnectFrame(customtkinter.CTkFrame):
             self.master.device["BleakObject"] = self.all_devices[devices_names[0]]["object"]
 
     async def discover_devices(self):
-        self.update_status(message="Scanning...")
+        self.update_status(message="Skanowanie...")
         devices = await bleak.BleakScanner.discover()
         for device in devices:
             if device.name != "Unknown":
                  self.all_devices[device.name] = {"address": device.address, "object": device}
         self.update_device_list(device_list=self.all_devices)
-        self.update_status(message="Scan finished")
+        self.update_status(message="Skanowanie zakończone")
 
     async def connect_to_device(self):
-        self.update_status(message="Connecting...")
+        self.update_status(message="Łączenie...")
         if self.master.device["address"] is not None:
             self.master.device["client"] = bleak.BleakClient(self.master.device["BleakObject"])
             await self.master.device["client"].connect()
-            seed = "".join([str(random.randint(1, 9)) for _ in range(20)])
-            print(f'{seed = }')
-            await self.master.device["client"].write_gatt_char(UUID, seed.encode())
+            message = "00000000000000000000"
+            await self.master.device["client"].write_gatt_char(UUID, message.encode())
             self.master.switch_frame(SecurityFrame)
         else:
-            self.update_status("Not Connected (device not selected)")
+            self.update_status("Nie połączono (nie wybrano urządzenia)")
 
     async def send_to_device(self, message):
         await self.master.device["client"].write_gatt_char(UUID, "".join([str(random.randint(1, 9)) for _ in range(20)]).encode())
@@ -109,12 +108,12 @@ class SecurityFrame(customtkinter.CTkFrame):
         customtkinter.CTkFrame.__init__(self, master)
         self.master = master
 
-        self.button_next = customtkinter.CTkButton(self, text="Set pattern", command=lambda: self.set_security_pattern(), width=141, height=50).place(x=180, y=280)
-        self.button_next = customtkinter.CTkButton(self, text="Next", command=lambda: self.run_send_task(self.master.async_loop, "EEaaaabbbbccccdddd"), width=141, height=50)
+        self.button_next = customtkinter.CTkButton(self, text="Ustaw kod", command=lambda: self.set_security_pattern(), width=141, height=50).place(x=180, y=280)
+        self.button_next = customtkinter.CTkButton(self, text="Dalej", command=lambda: self.run_send_task(self.master.async_loop, "CC0000000000"), width=141, height=50)
         self.button_next.place(x=180, y=350)
         self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
         self.label_status.place(x=25, y=425)
-        self.update_status(message="Security Code not set")
+        self.update_status(message="Kod bezpieczeństwa nie został ustawiony")
         
         self.checkboxes_security_pattern = dict()
         self.checkboxes_states = list()
@@ -138,13 +137,13 @@ class SecurityFrame(customtkinter.CTkFrame):
             security_pattern_values.append(self.checkboxes_security_pattern[idx]["state"].get())
         self.master.security_pattern = (chr(self.str_to_bin_to_dec(data=security_pattern_values[:8])), chr(self.str_to_bin_to_dec(data=security_pattern_values[8:])))
         print(f"{self.master.security_pattern = }")
-        self.update_status(message="Security patter has been set")
+        self.update_status(message="Kod bezpieczeństwa został ustawiony")
 
     def update_status(self, message):
         self.label_status.configure(text=f"Status: {message}")
 
     async def send_to_device(self, message):
-        message = self.master.security_pattern[0]+self.master.security_pattern[1]+message
+        message = self.master.security_pattern[0]+self.master.security_pattern[1]+message+"000000"
         print(f"{message = }")
         await self.master.device["client"].write_gatt_char(UUID, message.encode())
         self.master.switch_frame(ConfigurationFrame)
@@ -156,24 +155,67 @@ class ConfigurationFrame(customtkinter.CTkFrame):
     def __init__(self, master):
         customtkinter.CTkFrame.__init__(self, master)
         self.master = master
+        self.command = ""
+        self.user_data = 100
+        with open("settings.json", "r") as settings_file:
+            self.settings = json.load(settings_file)
 
-        customtkinter.CTkButton(self, text="LED ON", command=lambda: self.run_send_task(self.master.async_loop, "N"), width=210, height=50).place(x=25, y=25)
-        customtkinter.CTkButton(self, text="LED OFF", command=lambda: self.run_send_task(self.master.async_loop, "F"), width=210, height=50).place(x=265, y=25)
-        self.msg = customtkinter.StringVar(self, "")
-        self.entry = customtkinter.CTkEntry( master=self, textvariable=self.msg, width=450, height=50, border_width=2, corner_radius=10)
-        self.entry.place(x=25, y=100)
-        self.button_send = customtkinter.CTkButton(self, text="Send", command=lambda: self.run_send_task(self.master.async_loop, str(self.msg.get())), width=450, height=50)
-        self.button_send.place(x=25, y=175)
+        customtkinter.CTkButton(self, text="PION", command=lambda: self.set_command("M1"), width=210, height=50).place(x=25, y=25)
+        customtkinter.CTkButton(self, text="POZIOM", command=lambda: self.set_command("M2"), width=210, height=50).place(x=265, y=25)
+        customtkinter.CTkButton(self, text="SKOS", command=lambda: self.set_command("M3"), width=210, height=50).place(x=25, y=100)
+        customtkinter.CTkButton(self, text="LAMPKA", command=lambda: self.set_command("M4"), width=210, height=50).place(x=265, y=100)
+        customtkinter.CTkButton(self, text="+", command=lambda: self.increment_counter(), width=150, height=50).place(x=25, y=175)
+        customtkinter.CTkButton(self, text="-", command=lambda: self.decrement_counter(), width=150, height=50).place(x=325, y=175)
+        self.label_user_data = customtkinter.CTkLabel(self, text="", width=100, height=50)
+        self.label_user_data.place(x=200, y=175)
+        self.label_user_data.configure(text=f"{self.user_data}ms")
+        self.button_send = customtkinter.CTkButton(self, text="Send", command=lambda: self.run_send_task(self.master.async_loop), width=450, height=50)
+        self.button_send.place(x=25, y=250)
         self.button_back = customtkinter.CTkButton(self, text="Back", command=lambda: self.master.switch_frame(SecurityFrame), width=450, height=50)
-        self.button_back.place(x=25, y=250)
-        print(f"{self.master.security_pattern = }")
+        self.button_back.place(x=25, y=325)
+        self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
+        self.label_status.place(x=25, y=425)
+        self.update_status(message="Wybierz efekt!")
 
-    async def send_to_device(self, message):
-        await self.master.device["client"].write_gatt_char(UUID, message.encode())
-        print(f"{message = }")
+    def increment_counter(self):
+        if self.user_data < self.settings["constants"]["delay"]["max"]:
+            self.user_data += self.settings["constants"]["delay"]["step"]
+        else:
+            self.user_data = self.settings["constants"]["delay"]["min"]
+        self.label_user_data.configure(text=f"{self.user_data}ms")
 
-    def run_send_task(self, async_loop, message):
-        threading.Thread(target=lambda async_loop: async_loop.run_until_complete(self.send_to_device(message=message)), args=(async_loop,)).start()
+    def decrement_counter(self):
+        if self.user_data > self.settings["constants"]["delay"]["min"]:
+            self.user_data -= self.settings["constants"]["delay"]["step"]
+        else:
+            self.user_data = self.settings["constants"]["delay"]["max"]
+        self.label_user_data.configure(text=f"{self.user_data}ms")
+
+    def set_command(self, command):
+        self.command = command
+        self.update_status(message=f'Wybrano efekt -> {self.settings["constants"]["effects"][command]}')
+
+    def update_status(self, message):
+        self.label_status.configure(text=f"Status: {message}")
+    
+    def prepare_message(self):
+        security_code = self.master.security_pattern[0]+self.master.security_pattern[1]
+        data = str(self.user_data).rjust(self.settings["constants"]["msg_data"]["length"], "0")
+        msg = security_code+self.command+data
+        crc = str(sum([ord(m) for m in msg])).rjust(self.settings["constants"]["msg_crc"]["length"], "0")
+        return security_code+self.command+data+crc
+
+    async def send_to_device(self):
+        if self.command != "":
+            message = self.prepare_message()
+            await self.master.device["client"].write_gatt_char(UUID, message.encode())
+            self.update_status(message=f'Wysłano -> {self.settings["constants"]["effects"][self.command]} i {self.user_data}')
+            print(f"{message = }")
+        else:
+            self.update_status(message="Nie wybrano efektu")
+
+    def run_send_task(self, async_loop):
+        threading.Thread(target=lambda async_loop: async_loop.run_until_complete(self.send_to_device()), args=(async_loop,)).start()
 
 if __name__ == '__main__':
     event_loop = asyncio.get_event_loop()

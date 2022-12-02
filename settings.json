@@ -3,5 +3,24 @@
         "title": "Program",
         "width": 500,
         "height": 500
+    },
+    "constants": {
+        "delay": {
+            "max": 1000,
+            "min": 100,
+            "step": 100
+        },
+        "msg_data": {
+            "length": 10
+        },
+        "msg_crc": {
+            "length": 6
+        },
+        "effects": {
+            "M1": "POZIOM",
+            "M2": "PION",
+            "M3": "SKOS",
+            "M4": "LAMPKA"
+        }
     }
 }
