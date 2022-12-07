@@ -28,8 +28,8 @@ class CubeBleController(customtkinter.CTk):
 
         self.current_frame = None
         self.switch_frame(ScanConnectFrame)
-        # self.switch_frame(ConfigurationFrame)
         # self.switch_frame(SecurityFrame)
+        # self.switch_frame(ConfigurationFrame)
   
     def switch_frame(self, new_frame_class):
         try:
@@ -169,13 +169,13 @@ class ConfigurationFrame(customtkinter.CTkFrame):
         self.label_user_data = customtkinter.CTkLabel(self, text="", width=100, height=50)
         self.label_user_data.place(x=200, y=175)
         self.label_user_data.configure(text=f"{self.user_data}ms")
-        self.button_send = customtkinter.CTkButton(self, text="Send", command=lambda: self.run_send_task(self.master.async_loop), width=450, height=50)
+        self.button_send = customtkinter.CTkButton(self, text="Wyślij", command=lambda: self.run_send_task(self.master.async_loop), width=450, height=50)
         self.button_send.place(x=25, y=250)
-        self.button_back = customtkinter.CTkButton(self, text="Back", command=lambda: self.master.switch_frame(SecurityFrame), width=450, height=50)
+        self.button_back = customtkinter.CTkButton(self, text="Wróć", command=lambda: self.master.switch_frame(SecurityFrame), width=450, height=50)
         self.button_back.place(x=25, y=325)
         self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
         self.label_status.place(x=25, y=425)
-        self.update_status(message="Wybierz efekt!")
+        self.update_status(message="Wybierz efekt")
 
     def increment_counter(self):
         if self.user_data < self.settings["constants"]["delay"]["max"]:
@@ -193,7 +193,7 @@ class ConfigurationFrame(customtkinter.CTkFrame):
 
     def set_command(self, command):
         self.command = command
-        self.update_status(message=f'Wybrano efekt -> {self.settings["constants"]["effects"][command]}')
+        self.update_status(message=f'Wybrano efekt "{self.settings["constants"]["effects"][command]}"')
 
     def update_status(self, message):
         self.label_status.configure(text=f"Status: {message}")
@@ -209,7 +209,7 @@ class ConfigurationFrame(customtkinter.CTkFrame):
         if self.command != "":
             message = self.prepare_message()
             await self.master.device["client"].write_gatt_char(UUID, message.encode())
-            self.update_status(message=f'Wysłano -> {self.settings["constants"]["effects"][self.command]} i {self.user_data}')
+            self.update_status(message=f'Wysłano konfigurację "{self.settings["constants"]["effects"][self.command]}" i "{self.user_data}ms"')
             print(f"{message = }")
         else:
             self.update_status(message="Nie wybrano efektu")
