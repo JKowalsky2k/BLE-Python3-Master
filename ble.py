@@ -9,6 +9,7 @@ import json
 from time import sleep
 import math
 import random
+import hashlib
 
 UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
 
@@ -52,7 +53,7 @@ class ScanConnectFrame(customtkinter.CTkFrame):
         customtkinter.CTkButton(self, text="Polącz", command=lambda: self.run_connect_task(self.master.async_loop), width=450, height=50).place(x=25, y=175)
         self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
         self.label_status.place(x=25, y=425)
-        self.update_status(message="Nie połączony")
+        self.update_status(message="Niepołączony")
 
     def update_status(self, message):
         self.label_status.configure(text=f"Status: {message}")
@@ -90,7 +91,7 @@ class ScanConnectFrame(customtkinter.CTkFrame):
             await self.master.device["client"].write_gatt_char(UUID, message.encode())
             self.master.switch_frame(SecurityFrame)
         else:
-            self.update_status("Nie połączono (nie wybrano urządzenia)")
+            self.update_status("Niepołączono (nie wybrano urządzenia)")
 
     async def send_to_device(self, message):
         await self.master.device["client"].write_gatt_char(UUID, "".join([str(random.randint(1, 9)) for _ in range(20)]).encode())
@@ -202,7 +203,10 @@ class ConfigurationFrame(customtkinter.CTkFrame):
         security_code = self.master.security_pattern[0]+self.master.security_pattern[1]
         data = str(self.user_data).rjust(self.settings["constants"]["msg_data"]["length"], "0")
         msg = security_code+self.command+data
-        crc = str(sum([ord(m) for m in msg])).rjust(self.settings["constants"]["msg_crc"]["length"], "0")
+        crc_md5 = hashlib.md5(msg.encode("utf-8")).hexdigest()
+        crc = crc_md5[3]+crc_md5[5]+crc_md5[11]+crc_md5[21]+crc_md5[25]+crc_md5[30]
+        print(f"{crc_md5 = }")
+        print(f"{crc = }")
         return security_code+self.command+data+crc
 
     async def send_to_device(self):
