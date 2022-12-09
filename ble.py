@@ -10,8 +10,10 @@ from time import sleep
 import math
 import random
 import hashlib
+from cryptography.fernet import Fernet
 
 UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"
+MASTER_KEY = "Jb67fINfZT3H9x_cE6SoNx-VxqDm3wix9EhPokCI1Uk=".encode()
 
 class CubeBleController(customtkinter.CTk):
     def __init__(self, async_loop) -> None:
@@ -28,7 +30,8 @@ class CubeBleController(customtkinter.CTk):
         self.security_pattern = None
 
         self.current_frame = None
-        self.switch_frame(ScanConnectFrame)
+        self.switch_frame(LoginFrame)
+        # self.switch_frame(ScanConnectFrame)
         # self.switch_frame(SecurityFrame)
         # self.switch_frame(ConfigurationFrame)
   
@@ -40,6 +43,39 @@ class CubeBleController(customtkinter.CTk):
             self.current_frame.pack(fill=BOTH, expand=True)
         except Exception as error:
             print(f"{error}")
+
+class LoginFrame(customtkinter.CTkFrame):
+    def __init__(self, master):
+        customtkinter.CTkFrame.__init__(self, master)
+        self.master = master
+
+        customtkinter.CTkLabel(self, text="Nazwa użytkownika", width=450, height=50, anchor='w').place(x=25, y=25)
+        self.username_entry = customtkinter.CTkEntry(self, placeholder_text="Podaj nazwę użytkownika", width=450, height=50)
+        self.username_entry.place(x=25, y=75)
+        customtkinter.CTkLabel(self, text="Hasło", width=450, height=50, anchor='w').place(x=25, y=125)
+        self.password_entry = customtkinter.CTkEntry(self, placeholder_text="Podaj hasło", width=450, height=50)
+        self.password_entry.place(x=25, y=175)
+        self.password_entry.configure(show="*")
+        customtkinter.CTkButton(self, text="Zaloguj się", command= lambda: self.check_credentials(), width=450, height=50).place(x=25, y=250)
+        self.label_status = customtkinter.CTkLabel(self, text="", width=450, height=50)
+        self.label_status.place(x=25, y=425)
+        self.update_status(message="Podaj nazwę użytkownika lub hasło")
+
+    def check_credentials(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        credentials = username+password
+        sha512_hash = hashlib.sha512(credentials.encode("utf-8")).hexdigest()
+        with open("users.db") as file:
+            original_data = file.readline()
+        crypto_machine = Fernet(MASTER_KEY)
+        if sha512_hash == crypto_machine.decrypt(original_data.encode()).decode():
+            self.master.switch_frame(ScanConnectFrame)
+        else:
+            self.update_status(message="Zła nazwa użytkownika lub hasło")
+
+    def update_status(self, message):
+        self.label_status.configure(text=f"Status: {message}")
 
 class ScanConnectFrame(customtkinter.CTkFrame):
     def __init__(self, master):
